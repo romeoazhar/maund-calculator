@@ -1,5 +1,5 @@
 const CACHE_NAME = 'maund-calc-v1';
-const FILES_TO_CACHE = ['index.html', 'manifest.json', 'icon.png'];
+const FILES_TO_CACHE = ['index.html', 'manifest.json', 'calculator-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
