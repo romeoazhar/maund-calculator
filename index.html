@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Maund & Ser Price Calculator</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b71f4">
+  <style>
+    :root{
+      --card-width: 420px;
+      --accent: #0b71f4;
+      --bg: #f5f7fb;
+      --card: #ffffff;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      background:var(--bg);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height:100vh;
+      padding:20px;
+    }
+
+    .card{
+      width:100%;
+      max-width:var(--card-width);
+      background:var(--card);
+      border-radius:12px;
+      padding:22px;
+      box-shadow:0 8px 28px rgba(11,23,58,0.08);
+    }
+
+    h1{
+      margin:0 0 10px 0;
+      font-size:20px;
+      color:#123;
+      text-align:center;
+    }
+    p.lead{
+      margin:0 0 18px 0;
+      color:#556;
+      font-size:13px;
+      text-align:center;
+    }
+
+    label{display:block; font-size:13px; color:#334; margin-top:10px}
+    input[type="number"]{
+      width:100%;
+      padding:12px 10px;
+      border-radius:8px;
+      border:1px solid #d0d6df;
+      margin-top:6px;
+      font-size:16px;
+      background:#fbfdff;
+      outline:none;
+    }
+    input[type="number"]:focus{
+      border-color:var(--accent);
+      box-shadow:0 0 0 4px rgba(11,113,244,0.06);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+
+    button{
+      width:100%;
+      padding:12px;
+      margin-top:14px;
+      border-radius:8px;
+      border:none;
+      background:var(--accent);
+      color:white;
+      font-size:16px;
+      cursor:pointer;
+    }
+    button:active{transform:translateY(1px)}
+    .result{
+      margin-top:14px;
+      padding:12px;
+      border-radius:8px;
+      background:#f3f8ff;
+      border:1px solid #dceeff;
+      color:#0b3a7a;
+      font-weight:600;
+      line-height:1.4;
+      word-break:break-word;
+    }
+
+    .small{
+      font-size:13px;
+      color:#556;
+      margin-top:8px;
+      text-align:center;
+    }
+
+    @media (max-width:480px){
+      .card{padding:16px}
+      h1{font-size:18px}
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card" role="application" aria-labelledby="title">
+    <h1 id="title">Maund &amp; KG Price Calculator</h1>
+    <p class="lead">Enter price per maund and maund.kg (e.g. <strong>2.20</strong>) — fractional part is treated as KG.</p>
+
+    <label for="priceM">Price per Maund (PKR / unit)</label>
+    <input id="priceM" type="number" inputmode="decimal" step="0.01" placeholder="e.g. 4000">
+
+    <label for="maundKg">Maund.KG (format: maund.kg) — example: <em>2.20</em></label>
+    <input id="maundKg" type="number" inputmode="decimal" step="0.01" placeholder="e.g. 2.20">
+
+    <button id="calcBtn" type="button">Calculate</button>
+
+    <div id="result" class="result" aria-live="polite">Result will appear here.</div>
+
+    <p class="small">Notes: 1 maund = 40 kg. Fractional part after the dot is interpreted as kg (so 2.20 → 2 maund 20 kg = 100 kg). Trailing zeroes like <em>2.2</em> are treated the same as <em>2.20</em>.</p>
+  </div>
+
+<script>
+(function(){
+  const MAUND_KG = 40;
+  const priceEl = document.getElementById('priceM');
+  const maundEl = document.getElementById('maundKg');
+  const btn = document.getElementById('calcBtn');
+  const out = document.getElementById('result');
+
+  function sanitizeFractionPart(fracStr){
+    fracStr = (fracStr || "").replace(/\D/g,'');
+    if(fracStr.length === 0) return 0;
+    if(fracStr.length === 1){
+      return Number(fracStr) * 10;
+    }
+    return Number(fracStr.slice(0,2));
+  }
+
+  function parseMaundKgFromString(raw){
+    raw = (raw || "").trim();
+    if(raw === "") return null;
+    raw = raw.replace(',', '.');
+
+    if(!raw.includes('.')){
+      const m = parseInt(raw.replace(/\D/g,''), 10);
+      return {maunds: isNaN(m) ? 0 : m, kgs: 0};
+    }
+    const parts = raw.split('.');
+    const maundPart = parts[0].replace(/\D/g,'');
+    const fracPart = parts.slice(1).join('');
+    const maunds = maundPart === "" ? 0 : parseInt(maundPart,10);
+    const kgs = sanitizeFractionPart(fracPart);
+    return {maunds: isNaN(maunds) ? 0 : maunds, kgs: isNaN(kgs) ? 0 : kgs};
+  }
+
+  function showMessage(html){
+    out.innerHTML = html;
+  }
+
+  function calculate(){
+    const priceVal = priceEl.value;
+    const maundRaw = maundEl.value;
+
+    if(priceVal === "" || maundRaw === ""){
+      showMessage('<span style="color:#b30">Please enter both fields.</span>');
+      return;
+    }
+
+    const pricePerMaund = Number(priceVal);
+    if(isNaN(pricePerMaund) || pricePerMaund < 0){
+      showMessage('<span style="color:#b30">Enter a valid positive price.</span>');
+      return;
+    }
+
+    const parsed = parseMaundKgFromString(maundRaw);
+    if(parsed === null){
+      showMessage('<span style="color:#b30">Enter a valid maund.kg value (e.g. 2.20).</span>');
+      return;
+    }
+
+    const totalKg = (parsed.maunds * MAUND_KG) + parsed.kgs;
+    const pricePerKg = pricePerMaund / MAUND_KG;
+    const totalPrice = pricePerKg * totalKg;
+
+    showMessage(
+      `Price per KG: <strong>${pricePerKg.toFixed(2)}</strong><br>` +
+      `Total KG: <strong>${totalKg}</strong><br>` +
+      `Final Amount: <strong>${totalPrice.toFixed(2)}</strong>`
+    );
+
+    priceEl.value = "";
+    maundEl.value = "";
+    priceEl.focus();
+  }
+
+  btn.addEventListener('click', calculate);
+
+  [priceEl, maundEl].forEach(el=>{
+    el.addEventListener('keydown', function(e){
+      if(e.key === 'Enter') {
+        e.preventDefault();
+        calculate();
+      }
+    });
+  });
+})();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+</script>
+</body>
+</html>
