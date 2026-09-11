@@ -93,6 +93,18 @@
       word-break:break-word;
     }
 
+    .words{
+      margin-top:8px;
+      padding:10px 12px;
+      border-radius:8px;
+      background:#fff8ec;
+      border:1px solid #ffe3b0;
+      color:#8a5a00;
+      font-size:13px;
+      font-style:italic;
+      line-height:1.4;
+    }
+
     .small{
       font-size:13px;
       color:#556;
@@ -121,6 +133,7 @@
     <button id="calcBtn" type="button">Calculate</button>
 
     <div id="result" class="result" aria-live="polite">Result will appear here.</div>
+    <div id="wordsResult" class="words" style="display:none;"></div>
 
     <p class="small">Notes: 1 maund = 40 kg. Fractional part after the dot is interpreted as kg (so 2.20 → 2 maund 20 kg = 100 kg). Trailing zeroes like <em>2.2</em> are treated the same as <em>2.20</em>.</p>
     <p style="margin-top:12px;font-size:12px;color:#888;text-align:center;">Made by Romeo Azhar</p>
@@ -133,6 +146,7 @@
   const maundEl = document.getElementById('maundKg');
   const btn = document.getElementById('calcBtn');
   const out = document.getElementById('result');
+  const wordsOut = document.getElementById('wordsResult');
 
   function sanitizeFractionPart(fracStr){
     fracStr = (fracStr || "").replace(/\D/g,'');
@@ -164,24 +178,81 @@
     out.innerHTML = html;
   }
 
+  const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+    "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+    "Seventeen", "Eighteen", "Nineteen"];
+  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+  function twoDigits(n){
+    if(n < 20) return ones[n];
+    const t = Math.floor(n/10), o = n%10;
+    return tens[t] + (o ? " " + ones[o] : "");
+  }
+
+  function threeDigits(n){
+    const h = Math.floor(n/100), r = n%100;
+    let str = "";
+    if(h) str += ones[h] + " Hundred";
+    if(r){
+      if(str) str += " ";
+      str += twoDigits(r);
+    }
+    return str;
+  }
+
+  function numberToWords(num){
+    num = Math.round(num);
+    if(num === 0) return "Zero";
+    if(num < 0) return "Minus " + numberToWords(-num);
+
+    const crore = Math.floor(num / 10000000);
+    num %= 10000000;
+    const lakh = Math.floor(num / 100000);
+    num %= 100000;
+    const thousand = Math.floor(num / 1000);
+    num %= 1000;
+    const rest = num;
+
+    let parts = [];
+    if(crore) parts.push(threeDigits(crore) + " Crore");
+    if(lakh) parts.push(twoDigits(lakh) + " Lakh");
+    if(thousand) parts.push(twoDigits(thousand) + " Thousand");
+    if(rest) parts.push(threeDigits(rest));
+
+    return parts.join(" ");
+  }
+
+  function amountToWords(amount){
+    const rupees = Math.floor(amount);
+    const paisaExact = Math.round((amount - rupees) * 100);
+    let words = numberToWords(rupees) + " Rupees";
+    if(paisaExact > 0){
+      words += " and " + numberToWords(paisaExact) + " Paisa";
+    }
+    return words + " only";
+  }
+
   function calculate(){
     const priceVal = priceEl.value;
     const maundRaw = maundEl.value;
 
     if(priceVal === "" || maundRaw === ""){
       showMessage('<span style="color:#b30">Please enter both fields.</span>');
+      wordsOut.style.display = "none";
       return;
     }
 
     const pricePerMaund = Number(priceVal);
     if(isNaN(pricePerMaund) || pricePerMaund < 0){
       showMessage('<span style="color:#b30">Enter a valid positive price.</span>');
+      wordsOut.style.display = "none";
       return;
     }
 
     const parsed = parseMaundKgFromString(maundRaw);
     if(parsed === null){
       showMessage('<span style="color:#b30">Enter a valid maund.kg value (e.g. 2.20).</span>');
+      wordsOut.style.display = "none";
       return;
     }
 
@@ -194,6 +265,9 @@
       `Total KG: <strong>${totalKg}</strong><br>` +
       `Final Amount: <strong>${totalPrice.toFixed(2)}</strong>`
     );
+
+    wordsOut.textContent = amountToWords(totalPrice);
+    wordsOut.style.display = "block";
 
     priceEl.value = "";
     maundEl.value = "";
