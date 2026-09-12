@@ -63,12 +63,6 @@
       box-shadow:0 0 0 4px rgba(11,113,244,0.06);
     }
 
-    .grid{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:10px;
-    }
-
     button{
       width:100%;
       padding:12px;
@@ -122,20 +116,20 @@
 
   <div class="card" role="application" aria-labelledby="title">
     <h1 id="title">Maund &amp; KG Price Calculator</h1>
-    <p class="lead">Enter price per maund and maund.kg (e.g. <strong>2.20</strong>) — fractional part is treated as KG.</p>
+    <p class="lead">Enter price per maund and total weight in KG — Maund.KG is calculated automatically.</p>
 
     <label for="priceM">Price per Maund (PKR / unit)</label>
     <input id="priceM" type="number" inputmode="decimal" step="0.01" placeholder="e.g. 4000">
 
-    <label for="maundKg">Maund.KG (format: maund.kg) — example: <em>2.20</em></label>
-    <input id="maundKg" type="number" inputmode="decimal" step="0.01" placeholder="e.g. 2.20">
+    <label for="kgInput">Enter Weight in KG</label>
+    <input id="kgInput" type="number" inputmode="decimal" step="0.01" placeholder="e.g. 100">
 
     <button id="calcBtn" type="button">Calculate</button>
 
     <div id="result" class="result" aria-live="polite">Result will appear here.</div>
     <div id="wordsResult" class="words" style="display:none;"></div>
 
-    <p class="small">Notes: 1 maund = 40 kg. Fractional part after the dot is interpreted as kg (so 2.20 → 2 maund 20 kg = 100 kg). Trailing zeroes like <em>2.2</em> are treated the same as <em>2.20</em>.</p>
+    <p class="small">Notes: 1 maund = 40 kg. Enter total weight directly in KG; the app converts it to Maund.KG automatically.</p>
     <p style="margin-top:12px;font-size:12px;color:#888;text-align:center;">Made by Romeo Azhar</p>
   </div>
 
@@ -143,36 +137,10 @@
 (function(){
   const MAUND_KG = 40;
   const priceEl = document.getElementById('priceM');
-  const maundEl = document.getElementById('maundKg');
+  const kgEl = document.getElementById('kgInput');
   const btn = document.getElementById('calcBtn');
   const out = document.getElementById('result');
   const wordsOut = document.getElementById('wordsResult');
-
-  function sanitizeFractionPart(fracStr){
-    fracStr = (fracStr || "").replace(/\D/g,'');
-    if(fracStr.length === 0) return 0;
-    if(fracStr.length === 1){
-      return Number(fracStr) * 10;
-    }
-    return Number(fracStr.slice(0,2));
-  }
-
-  function parseMaundKgFromString(raw){
-    raw = (raw || "").trim();
-    if(raw === "") return null;
-    raw = raw.replace(',', '.');
-
-    if(!raw.includes('.')){
-      const m = parseInt(raw.replace(/\D/g,''), 10);
-      return {maunds: isNaN(m) ? 0 : m, kgs: 0};
-    }
-    const parts = raw.split('.');
-    const maundPart = parts[0].replace(/\D/g,'');
-    const fracPart = parts.slice(1).join('');
-    const maunds = maundPart === "" ? 0 : parseInt(maundPart,10);
-    const kgs = sanitizeFractionPart(fracPart);
-    return {maunds: isNaN(maunds) ? 0 : maunds, kgs: isNaN(kgs) ? 0 : kgs};
-  }
 
   function showMessage(html){
     out.innerHTML = html;
@@ -234,35 +202,38 @@
 
   function calculate(){
     const priceVal = priceEl.value;
-    const maundRaw = maundEl.value;
+    const kgVal = kgEl.value;
 
-    if(priceVal === "" || maundRaw === ""){
+    if(priceVal === "" || kgVal === ""){
       showMessage('<span style="color:#b30">Please enter both fields.</span>');
       wordsOut.style.display = "none";
       return;
     }
 
     const pricePerMaund = Number(priceVal);
+    const totalKg = Number(kgVal);
+
     if(isNaN(pricePerMaund) || pricePerMaund < 0){
       showMessage('<span style="color:#b30">Enter a valid positive price.</span>');
       wordsOut.style.display = "none";
       return;
     }
-
-    const parsed = parseMaundKgFromString(maundRaw);
-    if(parsed === null){
-      showMessage('<span style="color:#b30">Enter a valid maund.kg value (e.g. 2.20).</span>');
+    if(isNaN(totalKg) || totalKg < 0){
+      showMessage('<span style="color:#b30">Enter a valid positive weight in KG.</span>');
       wordsOut.style.display = "none";
       return;
     }
 
-    const totalKg = (parsed.maunds * MAUND_KG) + parsed.kgs;
+    const maunds = Math.floor(totalKg / MAUND_KG);
+    const kgs = totalKg % MAUND_KG;
+    const kgsDisplay = kgs.toFixed(2).replace(/\.?0+$/, '') || '0';
+
     const pricePerKg = pricePerMaund / MAUND_KG;
     const totalPrice = pricePerKg * totalKg;
 
     showMessage(
+      `Weight: <strong>${maunds} Maund ${kgsDisplay} KG</strong> (${totalKg} kg total)<br>` +
       `Price per KG: <strong>${pricePerKg.toFixed(2)}</strong><br>` +
-      `Total KG: <strong>${totalKg}</strong><br>` +
       `Final Amount: <strong>${totalPrice.toFixed(2)}</strong>`
     );
 
@@ -270,13 +241,13 @@
     wordsOut.style.display = "block";
 
     priceEl.value = "";
-    maundEl.value = "";
+    kgEl.value = "";
     priceEl.focus();
   }
 
   btn.addEventListener('click', calculate);
 
-  [priceEl, maundEl].forEach(el=>{
+  [priceEl, kgEl].forEach(el=>{
     el.addEventListener('keydown', function(e){
       if(e.key === 'Enter') {
         e.preventDefault();
